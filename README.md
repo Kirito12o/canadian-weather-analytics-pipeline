@@ -10,6 +10,24 @@ To stream, process, detect anomalies, and store real-time weather data from Cana
 
 ---
 
+✨ Features
+⏱️ Real-time ingestion of Canadian weather data
+🧠 ML-based anomaly detection for extreme temperatures
+📨 Instant alerts via Amazon SNS
+🔁 Stream processing with AWS Kinesis
+🗃️ Scalable storage using DynamoDB and S3
+📊 Export capabilities for historical analytics
+⚙️ Infrastructure as Code (CloudFormation & Terraform)
+🧪 Integrated testing and deployment automation
+
+---
+🛠️ Technology Stack
+AWS Services: Lambda · Kinesis · DynamoDB · SNS · S3 · CloudWatch
+Infrastructure: CloudFormation · Terraform
+Languages: Python · YAML · HCL
+
+---
+
 ## 🏗️ High-Level Architecture
 
 ```
@@ -102,6 +120,29 @@ To stream, process, detect anomalies, and store real-time weather data from Cana
    - Stores to DynamoDB
    - Sends alerts if needed
 3. Exporter Lambda writes data to S3 for further analysis or archival
+
+---
+
+🔔 Sample SNS Alert Notifications
+The pipeline automatically sends alerts for extreme weather conditions in monitored Canadian cities. Alerts are triggered by ML-based anomaly scoring within the data processor Lambda function.
+🔥 Extreme Heat Alert
+🔥 EXTREME HEAT ALERT 🔥
+
+City: Halifax, NS
+Temperature: 39.3°C
+Feels Like: 40.4°C
+Humidity: 87%
+
+⚠️ Stay hydrated, avoid outdoor activity, and remain indoors if possible.
+❄️ Extreme Cold Alert
+❄️ EXTREME COLD ALERT ❄️
+
+City: Edmonton, AB
+Temperature: -31.8°C
+Feels Like: -37.2°C
+Humidity: 68%
+
+⚠️ Avoid prolonged outdoor exposure and dress in warm, layered clothing.
 
 ---
 
