@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Real-time Canadian Weather Analytics Pipeline infrastructure using AWS serverless components.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Deployment environment (e.g., dev, staging, prod)
+
+Resources:
+
+  WeatherDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "weather-data-bucket-${AWS::AccountId}-${Environment}"
+
+  WeatherAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "weather-alerts-topic-${Environment}"
+
+  WeatherDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "weather-data-table-${Environment}"
+      BillingMode: PAYPERREQUEST
+      AttributeDefinitions:
+        - AttributeName: city
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: city
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+  WeatherStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: !Sub "weather-stream-${Environment}"
+      ShardCount: 1
+
+  WeatherDataIngestionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "weather-data-ingestion-${Environment}"
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Code:
+        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Key: path/to/weather-data-ingestion.zip
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref WeatherDataTable
+          SNS_TOPIC_ARN: !Ref WeatherAlertsTopic
+      MemorySize: 128
+      Timeout: 30
+      Role: arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-execution-role
+
+  WeatherDataProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "weather-data-processor-${Environment}"
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Code:
+        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Key: path/to/weather-data-processor.zip
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref WeatherDataTable
+          SNS_TOPIC_ARN: !Ref WeatherAlertsTopic
+      MemorySize: 128
+      Timeout: 30
+      Role: arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-execution-role
+
+  WeatherDataExporterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "weather-data-exporter-${Environment}"
+      Handler: data_exporter.lambda_handler
+      Runtime: python3.12
+      Code:
+        S3Bucket: YOUR_DEPLOYMENT_BUCKET
+        S3Key: path/to/weather-data-exporter.zip
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref WeatherDataTable
+          S3_BUCKET: !Ref WeatherDataBucket
+      MemorySize: 256
+      Timeout: 60
+      Role: arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-execution-role
+
+Outputs:
+  WeatherDataBucket:
+    Description: Weather data S3 bucket
+    Value: !Ref WeatherDataBucket
+
+  WeatherStream:
+    Description: Kinesis data stream for ingesting weather data
+    Value: !Ref WeatherStream
+
+  WeatherAlertsTopic:
+    Description: SNS topic for extreme weather alerts
+    Value: !Ref WeatherAlertsTopic
+
+  WeatherDataTable:
+    Description: DynamoDB table for weather records
+    Value: !Ref WeatherDataTable
