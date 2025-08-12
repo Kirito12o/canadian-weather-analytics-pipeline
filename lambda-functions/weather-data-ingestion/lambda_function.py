@@ -11,6 +11,7 @@ Environment Variables Required:
 
 Author: [Your Name]
 Created: 2024-08-07
+Updated: 2024-08-12 - README compliance fixes
 """
 
 import json
@@ -65,8 +66,11 @@ def lambda_handler(event, context):
             weather_data['data_version'] = '1.0'
             weather_data['pipeline_stage'] = 'ingestion'
             
-            # Detect initial alert conditions
+            # Detect initial alert conditions (pre-processing filter)
             weather_data['alert_flags'] = detect_initial_alerts(weather_data)
+            
+            # Add ML anomaly detection preview (optional - for consistency with processor)
+            weather_data['preliminary_ml_analysis'] = get_preliminary_ml_analysis(weather_data)
             
             # Send to Kinesis
             response = kinesis.put_record(
@@ -93,7 +97,8 @@ def lambda_handler(event, context):
             'failed_records': failed_records,
             'processed_cities': processed_cities,
             'timestamp': datetime.datetime.utcnow().isoformat(),
-            'stream_name': stream_name
+            'stream_name': stream_name,
+            'pipeline_compliance': 'README_v1.0'
         })
     }
 
@@ -106,7 +111,7 @@ def get_weather_data(city, city_details):
         city_details (dict): City metadata including lat/lon
         
     Returns:
-        dict: Weather data record
+        dict: Weather data record with README-compliant field names
     """
     
     api_key = os.environ.get('OPENWEATHER_API_KEY')
@@ -133,17 +138,19 @@ def get_weather_data(city, city_details):
                 'latitude': city_details['lat'],
                 'longitude': city_details['lon'],
                 'timestamp': datetime.datetime.utcnow().isoformat(),
-                'temperature_celsius': data['main']['temp'],
-                'feels_like_celsius': data['main']['feels_like'],
+                # README-compliant field names for ML detector
+                'temperature_c': data['main']['temp'],
+                'feels_like_c': data['main']['feels_like'],
                 'humidity_percent': data['main']['humidity'],
                 'pressure_hpa': data['main']['pressure'],
-                'wind_speed_kmh': data['wind'].get('speed', 0) * 3.6,  # Convert m/s to km/h
+                'wind_kph': data['wind'].get('speed', 0) * 3.6,  # Convert m/s to km/h
                 'wind_direction_degrees': data['wind'].get('deg', 0),
                 'weather_condition': data['weather'][0]['main'],
                 'weather_description': data['weather'][0]['description'],
                 'visibility_km': data.get('visibility', 10000) / 1000,
                 'cloud_cover_percent': data['clouds']['all'],
-                'data_source': 'openweather_api'
+                'data_source': 'openweather_api',
+                'pipeda_compliant': True  # No personal data collected
             }
             
         except Exception as e:
@@ -161,7 +168,7 @@ def simulate_weather_data(city, city_details):
         city_details (dict): City metadata
         
     Returns:
-        dict: Simulated weather data
+        dict: Simulated weather data with README-compliant field names
     """
     
     # Get seasonal temperature adjustments
@@ -193,17 +200,19 @@ def simulate_weather_data(city, city_details):
         'latitude': city_details['lat'],
         'longitude': city_details['lon'],
         'timestamp': datetime.datetime.utcnow().isoformat(),
-        'temperature_celsius': round(temperature, 1),
-        'feels_like_celsius': round(temperature + random.uniform(-3, 3), 1),
+        # README-compliant field names for ML detector
+        'temperature_c': round(temperature, 1),
+        'feels_like_c': round(temperature + random.uniform(-3, 3), 1),
         'humidity_percent': humidity,
         'pressure_hpa': round(pressure, 1),
-        'wind_speed_kmh': round(wind_speed, 1),
+        'wind_kph': round(wind_speed, 1),
         'wind_direction_degrees': random.randint(0, 359),
         'weather_condition': weather_condition['main'],
         'weather_description': weather_condition['description'],
         'visibility_km': round(random.uniform(1, 20), 1),
         'cloud_cover_percent': random.randint(0, 100),
-        'data_source': 'simulated'
+        'data_source': 'simulated',
+        'pipeda_compliant': True  # No personal data collected
     }
 
 def get_seasonal_temperature(province):
@@ -296,7 +305,7 @@ def determine_weather_condition(temperature, humidity, wind_speed):
 
 def detect_initial_alerts(weather_data):
     """
-    Detect initial alert conditions during ingestion
+    Detect initial alert conditions during ingestion (pre-processing filter)
     
     Args:
         weather_data (dict): Weather data record
@@ -306,26 +315,36 @@ def detect_initial_alerts(weather_data):
     """
     
     alerts = []
-    temp = weather_data['temperature_celsius']
+    temp = weather_data['temperature_c']
     humidity = weather_data['humidity_percent']
-    wind_speed = weather_data['wind_speed_kmh']
+    wind_speed = weather_data['wind_kph']
     condition = weather_data['weather_condition']
     
-    # Extreme temperature alerts
-    if temp <= -30:
+    # Extreme temperature alerts (aligned with ML detector thresholds)
+    if temp <= -50:
+        alerts.append('EXTREME_COLD_ML_THRESHOLD')
+    elif temp <= -30:
         alerts.append('EXTREME_COLD')
     elif temp <= -20:
         alerts.append('COLD_WARNING')
+    elif temp >= 45:
+        alerts.append('EXTREME_HEAT_ML_THRESHOLD')
     elif temp >= 35:
         alerts.append('EXTREME_HEAT')
     elif temp >= 30:
         alerts.append('HEAT_WARNING')
     
-    # Wind alerts
-    if wind_speed >= 25:
-        alerts.append('HIGH_WIND')
+    # Wind alerts (aligned with ML detector)
+    if wind_speed >= 150:
+        alerts.append('EXTREME_WIND_ML_THRESHOLD')
     elif wind_speed >= 40:
         alerts.append('EXTREME_WIND')
+    elif wind_speed >= 25:
+        alerts.append('HIGH_WIND')
+    
+    # Humidity alerts (aligned with ML detector)
+    if humidity < 0 or humidity > 100:
+        alerts.append('HUMIDITY_ML_ANOMALY')
     
     # Storm conditions
     if condition in ['Snow', 'Rain'] and wind_speed > 15 and humidity > 85:
@@ -340,6 +359,39 @@ def detect_initial_alerts(weather_data):
         alerts.append('DENSE_FOG')
     
     return alerts
+
+def get_preliminary_ml_analysis(weather_data):
+    """
+    Lightweight preliminary ML analysis for consistency with processor Lambda
+    
+    Args:
+        weather_data (dict): Weather data record
+        
+    Returns:
+        dict: Preliminary analysis results
+    """
+    
+    temp = weather_data['temperature_c']
+    humidity = weather_data['humidity_percent']
+    wind = weather_data['wind_kph']
+    
+    # Quick anomaly checks (same logic as enhanced ML detector)
+    temp_anomaly = temp < -50 or temp > 45
+    humidity_anomaly = humidity < 0 or humidity > 100
+    wind_anomaly = wind > 150
+    
+    # Quick severity estimation
+    temp_score = max(0, abs(temp - 22)) / 67 * 40  # Rough 0-40 scale
+    humidity_score = max(0, abs(humidity - 50)) / 50 * 25  # Rough 0-25 scale
+    wind_score = min(wind / 150 * 35, 35)  # Rough 0-35 scale
+    estimated_severity = min(int(temp_score + humidity_score + wind_score), 100)
+    
+    return {
+        'quick_anomaly_check': temp_anomaly or humidity_anomaly or wind_anomaly,
+        'estimated_severity': estimated_severity,
+        'requires_full_ml_processing': temp_anomaly or humidity_anomaly or wind_anomaly or estimated_severity > 50,
+        'ingestion_stage_analysis': True
+    }
 
 def decimal_default(obj):
     """
